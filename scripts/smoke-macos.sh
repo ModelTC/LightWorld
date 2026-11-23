@@ -14,7 +14,7 @@ helpers="$contents/Helpers"
 python="$app/$(plutil -extract LightWorldPythonExecutable raw "$contents/Info.plist")"
 player="$helpers/LightWorld.app/Contents/MacOS/Blenderplayer"
 for executable in "$contents/MacOS/LightWorld" "$helpers/Blender.app/Contents/MacOS/Blender" "$python" "$player"; do
-    lipo -verify_arch arm64 "$executable"
+    lipo "$executable" -verify_arch arm64
 done
 codesign --verify --deep --strict "$app"
 
