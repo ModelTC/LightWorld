@@ -57,12 +57,17 @@ struct ModelSettingsStore {
     }
 
     func load() throws -> ModelConfiguration? {
+        // The login keychain uses the legacy interaction setting on macOS.
+        var interactionAllowed: DarwinBoolean = false
+        guard SecKeychainGetUserInteractionAllowed(&interactionAllowed) == errSecSuccess,
+              SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else { return nil }
+        defer { SecKeychainSetUserInteractionAllowed(interactionAllowed.boolValue) }
         var request = query
         request[kSecReturnData as String] = true
         request[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
         let status = SecItemCopyMatching(request as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
+        if status == errSecItemNotFound || status == errSecInteractionNotAllowed { return nil }
         guard status == errSecSuccess, let data = item as? Data else {
             throw ModelSettingsError("Could not read model settings from Keychain. Unlock it and try again (error \(status)).")
         }
