@@ -2,12 +2,31 @@
 
 LightWorld is a 3D tool for designing and exploring real-world scenes. Open **LightWorld.app** from this folder to start in a blank world.
 
+## Controls
+
+| Action | Keyboard | Mouse or trackpad |
+| --- | --- | --- |
+| Walk forward / backward | `W` / `S` | — |
+| Sidestep left / right | `A` / `D` | — |
+| Fly up / descend | Hold `Shift+W` / `Shift+S` | — |
+| Move quickly forward / backward | — | Scroll up / down over the scene (about 2.5 meters per wheel notch) |
+| Turn and look up or down | — | Hold the left mouse button and drag, or click and drag on a trackpad |
+| Switch between first and third person | `V` | Click the view button in the toolbar |
+| Edit the prompt | — | Click the prompt field |
+| Add a line break in the prompt | `Shift+Return` | — |
+| Send the prompt | `Return` while editing | Click **Send** |
+| Resume navigation and keep the prompt draft | `Esc` while editing | Click the scene |
+| Read a long prompt | — | Scroll over the prompt field after it reaches its maximum height |
+| Expand or collapse the Design Log | — | Click the log title |
+| Read earlier log entries | — | Scroll over the expanded log |
+
+## Usage
+
 - Enter your **API Key**, **Base URL**, and **Model ID** at startup. You can skip setup and still explore, open, and save worlds. Use the gear button or **LightWorld → Model Settings** to enable prompts or change your settings. The settings card opens inside the scene view and pauses navigation until you dismiss it.
-- Click the prompt field and describe what you want to create or change in any language. The field highlights while you edit. Click the scene to resume navigation and keep your draft.
-- Press **Shift+Return** for a new line. Click **Send** or press **Return** to submit. The **Design Log** shows your original prompt, camera coordinates, the image count for each model request, object changes, and the result in English. The log collapses after a successful update. Click its title to expand or collapse it.
-- The default **Third Person** camera follows the character from behind and above. Press **V** or click the view button in the toolbar to switch to **First Person** and back. The follow camera moves closer near walls and ceilings and returns to its usual distance with room to spare.
-- Use **W / S** to move forward or backward and **A / D** to move to either side. While grounded, walking follows ramps and steps up or down onto nearby surfaces. Hold the left mouse button and drag, or drag with one finger on a trackpad, to change your heading and look up or down.
-- Scroll up or down to move quickly forward or backward, about 2.5 meters per notch. On the ground, scrolling follows ramps and stairs. Hold **Shift+W** to put on the bamboo copter and lift off. Hold **Shift+S** to descend. The character puts the copter away on landing. Scroll with the pointer over the log to read earlier entries.
+- Describe what you want to create or change in any language. The prompt field highlights while you edit.
+- The **Design Log** shows your original prompt, camera coordinates, the image count for each model request, object changes, and the result in English. The log collapses after a successful update.
+- The default **Third Person** camera follows the character from behind and above. The follow camera moves closer near walls and ceilings and returns to its usual distance with room to spare.
+- Walking and scrolling follow ramps and stairs while grounded. The character puts on the bamboo copter when taking off and puts it away on landing.
 - Choose **Save World** to save the current world as a `.blend` file. Use **Open World** to edit a working copy of a LightWorld file. Choose **Save World** again to keep any later edits.
 - For requests about sightlines, composition, or lighting, face the area you want to change. LightWorld can send Blender renderings from that viewpoint to the model and compare the original and proposed scenes. This workflow requires image input and tool calls through the Responses API.
 - If a draft fails review, the model can revise it up to twice using the review findings. LightWorld publishes a draft only after it passes review.
