@@ -16,9 +16,6 @@ LightWorld is a 3D tool for designing and exploring real-world scenes. Open **Li
 | Add a line break in the prompt | `Shift+Return` | — |
 | Send the prompt | `Return` while editing | Click **Send** |
 | Resume navigation and keep the prompt draft | `Esc` while editing | Click the scene |
-| Read a long prompt | — | Scroll over the prompt field after it reaches its maximum height |
-| Expand or collapse the Design Log | — | Click the log title |
-| Read earlier log entries | — | Scroll over the expanded log |
 
 ## Usage
 
