@@ -432,7 +432,9 @@ def terminate(_signal, _frame):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", required=True, type=Path)
-    parser.add_argument("--player-cache", type=Path)
+    player = parser.add_mutually_exclusive_group()
+    player.add_argument("--player", type=Path)
+    player.add_argument("--player-cache", type=Path)
     args = parser.parse_args()
     state = args.state.resolve()
     state.mkdir(parents=True, exist_ok=True)
@@ -445,7 +447,12 @@ def main():
             return 1
         app = LightWorld(state)
         boot = {}
-        if args.player_cache is not None:
+        if args.player is not None:
+            if not args.player.is_file() or not os.access(args.player, os.X_OK):
+                emit("fatal", message="The bundled LightWorld player is missing or damaged.")
+                return 1
+            boot["player_executable"] = str(args.player)
+        elif args.player_cache is not None:
             try:
                 emit("stage", phase="boot", level="info", message="Preparing the LightWorld player…")
                 info_path = ROOT.parent / "Info.plist"

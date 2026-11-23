@@ -9,11 +9,13 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 from .schema import apply_operation, DEFAULT_DESIGN, validate_design
 
 
 PROJECT = Path(__file__).resolve().parent.parent
+BUNDLED_MCP = PROJECT / "blender-mcp"
 BLENDER_EXECUTABLE = Path("Blender.app/Contents/MacOS/Blender")
 
 
@@ -23,7 +25,9 @@ class BlenderMCPError(RuntimeError):
 
 def _addon_path():
     override = os.environ.get("LIGHTWORLD_BLENDER_MCP_ADDON")
-    if override:
+    if BUNDLED_MCP.is_dir():
+        candidates = [BUNDLED_MCP / "addon"]
+    elif override:
         candidates = [Path(override).expanduser()]
     else:
         user = Path.home() / "Library/Application Support"
@@ -36,15 +40,21 @@ def _addon_path():
 
 
 def _server_command():
+    if BUNDLED_MCP.is_dir():
+        packages = BUNDLED_MCP / "site-packages"
+        return [
+            sys.executable, "-I", "-B", "-c",
+            f"import sys; sys.path.insert(0, {str(packages)!r}); from blmcp import main; sys.exit(main())",
+        ]
     override = os.environ.get("LIGHTWORLD_BLENDER_MCP_COMMAND")
     if override:
-        return override
+        return [override]
     found = shutil.which("blender-mcp")
     if found:
-        return found
+        return [found]
     conda = Path.home() / "miniconda3/envs/torch/bin/blender-mcp"
     if os.access(conda, os.X_OK):
-        return str(conda)
+        return [str(conda)]
     raise BlenderMCPError("Could not find the Blender Lab blender-mcp command.")
 
 
@@ -132,7 +142,7 @@ class BlenderMCP:
                 env = {**os.environ, "BLENDER_MCP_HOST": "127.0.0.1", "BLENDER_MCP_PORT": str(port),
                        "BLENDER_PATH": str(blender)}
                 self.server = subprocess.Popen(
-                    [server_command, "--transport", "stdio"], env=env, stdin=subprocess.PIPE,
+                    [*server_command, "--transport", "stdio"], env=env, stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE, stderr=self.log if self.log else subprocess.DEVNULL,
                     encoding="utf-8", errors="replace",
                 )

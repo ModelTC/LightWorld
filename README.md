@@ -1,10 +1,10 @@
 # LightWorld
 
-LightWorld is a 3D tool for designing and exploring real-world scenes. Open **LightWorld.app** from this folder to start in a blank world.
+LightWorld is a 3D tool for designing and exploring real-world scenes.
 
 ## Usage
 
-1. Install UPBGE at `/Applications/UPBGE` and set up Blender MCP. Run `./build.sh` and open **LightWorld.app**.
+1. [Download LightWorld](https://github.com/ModelTC/LightWorld/releases), unzip it, and open **LightWorld.app** on an Apple Silicon Mac with macOS 13 or later. The app includes its runtime dependencies.
 2. In **Model Settings**, enter your **API Key**, **Base URL**, and **Model ID** for an HTTPS provider that supports the Responses API.
 3. Submit a prompt to create or change the scene.
 4. Use **Open World** and **Save World** to work with `.blend` files.
@@ -25,3 +25,9 @@ You can skip model setup and still explore, open, and save worlds.
 | Add a line break in the prompt | `Shift+Return` | — |
 | Send the prompt | `Return` while editing | Click **Send** |
 | Resume navigation and keep the prompt draft | `Esc` while editing | Click the scene |
+
+## Build
+
+Run `./scripts/package-macos.sh` on an Apple Silicon Mac with Xcode to build the download ZIP in `dist/`. GitHub Actions builds, checks, and publishes each push to `main`.
+
+The workflow publishes an ad-hoc-signed preview by default. To publish a notarized release, set the repository Actions secrets `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. Use a Developer ID Application certificate and its private key exported as a password-protected PKCS#12 file for the first two secrets.

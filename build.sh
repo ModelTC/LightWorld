@@ -1,7 +1,9 @@
 #!/bin/zsh
 set -euo pipefail
 cd -- "${0:A:h}"
-stage=$(mktemp -d "$PWD/.build.XXXXXXXX")
+destination=${1:-"$PWD/LightWorld.app"}
+destination=${destination:a}
+stage=$(mktemp -d "${destination:h}/.lightworld-build.XXXXXXXX")
 trap 'rm -rf -- "$stage"' EXIT
 bundle="$stage/LightWorld.app"
 contents="$bundle/Contents"
@@ -42,13 +44,13 @@ plutil -insert LightWorldBuildDate -string "$build_date" "$contents/Info.plist"
 plutil -lint "$contents/Info.plist" >/dev/null
 codesign --force --sign - --identifier local.lightworld.app "$bundle"
 codesign --verify --strict "$bundle"
-if [[ -e LightWorld.app ]]; then
-    existing_id=$(plutil -extract CFBundleIdentifier raw LightWorld.app/Contents/Info.plist)
+if [[ -e "$destination" ]]; then
+    existing_id=$(plutil -extract CFBundleIdentifier raw "$destination/Contents/Info.plist")
     [[ "$existing_id" == local.lightworld.app ]] || exit 1
-    mv -- LightWorld.app "$stage/previous.app"
+    mv -- "$destination" "$stage/previous.app"
 fi
-if ! mv -- "$bundle" LightWorld.app; then
-    if [[ -e "$stage/previous.app" ]]; then mv -- "$stage/previous.app" LightWorld.app; fi
+if ! mv -- "$bundle" "$destination"; then
+    if [[ -e "$stage/previous.app" ]]; then mv -- "$stage/previous.app" "$destination"; fi
     exit 1
 fi
-print "$PWD/LightWorld.app"
+print -r -- "$destination"

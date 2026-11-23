@@ -1,0 +1,13 @@
+LightWorld runtime sources
+
+UPBGE / Blender and Blenderplayer
+The macOS archive, exact upstream revision and its build configuration:
+https://github.com/languel/upbge-mac-build/releases/tag/v0.54-alpha-2026-11-09-5a103f6e16d5
+https://github.com/UPBGE/upbge/tree/5a103f6e16d5fd1183284c67851e104913e0247f
+https://github.com/languel/upbge-mac-build/tree/320cff4319e34e5356359e5e0362b2d15ebaf4aa
+LightWorld brands Blenderplayer and disables Python bytecode writes in both apps.
+The engine's license texts are in the nested Blender.app's Contents/Resources/text/license.
+
+Blender Lab MCP
+https://projects.blender.org/lab/blender_mcp/src/commit/2cea8d566dde07fbac28a61d698909d69724e853
+The Blender Lab license and installed wheel notices are in Contents/Resources/blender-mcp.

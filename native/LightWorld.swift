@@ -167,6 +167,8 @@ final class LightWorld: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTex
     private let state: URL
     private let resources: URL
     private let playerCache: URL
+    private let bundledPython: URL?
+    private let upbge: URL
     private let blenderResources: URL
     private let panel = PromptPanel(contentRect: NSRect(x: 0, y: 0, width: 600, height: OverlayLayout.promptHeight),
                                     styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -255,7 +257,13 @@ final class LightWorld: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTex
         state = customState ?? cache.appendingPathComponent(UUID().uuidString, isDirectory: true)
         playerCache = (customState ?? cache).appendingPathComponent("Player", isDirectory: true)
         resources = Bundle.main.resourceURL ?? directory
-        let upbge = URL(fileURLWithPath: environment["LIGHTWORLD_UPBGE"] ?? "/Applications/UPBGE")
+        bundledPython = (Bundle.main.object(forInfoDictionaryKey: "LightWorldPythonExecutable") as? String)
+            .map { Bundle.main.bundleURL.appendingPathComponent($0) }
+        if bundledPython != nil {
+            upbge = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers", isDirectory: true)
+        } else {
+            upbge = URL(fileURLWithPath: environment["LIGHTWORLD_UPBGE"] ?? "/Applications/UPBGE")
+        }
         blenderResources = upbge.appendingPathComponent("Blender.app/Contents/Resources", isDirectory: true)
         super.init()
     }
@@ -825,9 +833,21 @@ final class LightWorld: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTex
     private func startService() throws {
         serviceLog = try log("service.log")
         let command = Process()
-        command.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        command.arguments = ["-B", resources.appendingPathComponent("backend/main.py").path,
-                             "--state", state.path, "--player-cache", playerCache.path]
+        command.executableURL = bundledPython ?? URL(fileURLWithPath: "/usr/bin/python3")
+        var arguments = ["-I", "-B", resources.appendingPathComponent("backend/main.py").path, "--state", state.path]
+        if bundledPython != nil {
+            let editor = upbge.appendingPathComponent("Blender.app/Contents/MacOS/Blender")
+            let player = upbge.appendingPathComponent("LightWorld.app/Contents/MacOS/Blenderplayer")
+            arguments += ["--player", player.path]
+            var environment = ProcessInfo.processInfo.environment
+            environment["LIGHTWORLD_UPBGE"] = upbge.path
+            environment["LIGHTWORLD_UPBGE_BLENDER"] = editor.path
+            environment["SSL_CERT_FILE"] = resources.appendingPathComponent("blender-mcp/site-packages/certifi/cacert.pem").path
+            command.environment = environment
+        } else {
+            arguments += ["--player-cache", playerCache.path]
+        }
+        command.arguments = arguments
         command.standardInput = serviceInput
         command.standardOutput = serviceOutput
         command.standardError = serviceLog

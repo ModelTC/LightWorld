@@ -1,4 +1,4 @@
-"""Prepare the locally installed renderer with LightWorld's macOS app name."""
+"""Brand the UPBGE renderer for LightWorld on macOS."""
 
 from ctypes import CDLL, c_char_p, c_int, c_uint, get_errno
 import fcntl
@@ -41,6 +41,20 @@ def _install(staged, installed):
         raise OSError(error, os.strerror(error), str(installed))
 
 
+def brand_player(bundle, icon, build_version, *, source=None):
+    info = plistlib.loads((bundle / INFO).read_bytes())
+    info.update(CFBundleName=PLAYER_NAME, CFBundleDisplayName=PLAYER_NAME,
+                CFBundleIdentifier=PLAYER_ID, CFBundleShortVersionString=LIGHTWORLD_VERSION,
+                CFBundleVersion=build_version)
+    info.pop("CFBundleGetInfoString", None)
+    if icon:
+        info["CFBundleIconFile"] = "LightWorld.icns"
+        (bundle / "Contents/Resources/LightWorld.icns").write_bytes(icon)
+    if source:
+        info["LightWorldPlayerSource"] = source
+    (bundle / INFO).write_bytes(plistlib.dumps(info))
+
+
 def prepare_player(source, cache, icon, *, build_date=None):
     source = source.resolve()
     cache.mkdir(parents=True, exist_ok=True)
@@ -73,15 +87,7 @@ def prepare_player(source, cache, icon, *, build_date=None):
             staged = Path(directory) / bundle.name
             staged.mkdir()
             _run(["/bin/cp", "-cR", source / "Contents", staged / "Contents"])
-            info = plistlib.loads((staged / INFO).read_bytes())
-            info.update(CFBundleName=PLAYER_NAME, CFBundleDisplayName=PLAYER_NAME,
-                        CFBundleIdentifier=PLAYER_ID, CFBundleShortVersionString=LIGHTWORLD_VERSION,
-                        CFBundleVersion=build_version, LightWorldPlayerSource=origin)
-            info.pop("CFBundleGetInfoString", None)
-            if icon_bytes:
-                info["CFBundleIconFile"] = "LightWorld.icns"
-                (staged / "Contents/Resources/LightWorld.icns").write_bytes(icon_bytes)
-            (staged / INFO).write_bytes(plistlib.dumps(info))
+            brand_player(staged, icon_bytes, build_version, source=origin)
             _run(["/usr/bin/codesign", "--force", "--sign", "-", "--identifier", PLAYER_ID,
                   "--preserve-metadata=entitlements,flags,runtime", staged])
             _run(["/usr/bin/codesign", "--verify", "--strict", staged])

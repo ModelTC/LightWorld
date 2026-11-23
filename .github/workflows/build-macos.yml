@@ -1,0 +1,119 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: lightworld-macos-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Fetch the pinned UPBGE runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          image=$(./scripts/fetch-upbge.sh "$RUNNER_TEMP/upbge" --mirror)
+          echo "UPBGE_DMG_PATH=$image" >> "$GITHUB_ENV"
+
+      - name: Configure Apple signing
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [[ -z "$APPLE_CERTIFICATE_BASE64" && -z "$APPLE_CERTIFICATE_PASSWORD" ]]; then
+            echo "Publishing an ad-hoc signed preview."
+            exit 0
+          fi
+          if [[ -z "$APPLE_CERTIFICATE_BASE64" || -z "$APPLE_CERTIFICATE_PASSWORD" ]]; then
+            echo "::error::Set both Apple signing certificate secrets."
+            exit 1
+          fi
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/lightworld-signing.XXXXXXXX")
+          echo "LIGHTWORLD_SIGN_DIR=$signing_dir" >> "$GITHUB_ENV"
+          certificate="$signing_dir/certificate.p12"
+          keychain="$signing_dir/signing.keychain-db"
+          password=$(openssl rand -hex 24)
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 -D > "$certificate"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          identity=$(security find-identity -v -p codesigning "$keychain" | awk '/"Developer ID Application:/ { print $2; exit }')
+          [[ -n "$identity" ]] || { echo "::error::A Developer ID Application identity is required."; exit 1; }
+          echo "LIGHTWORLD_SIGN_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          echo "LIGHTWORLD_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Compile and package the app
+        run: ./scripts/package-macos.sh "$RUNNER_TEMP/LightWorld"
+
+      - name: Notarize the Developer ID build
+        if: env.LIGHTWORLD_SIGN_IDENTITY != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ -z "$APPLE_ID" || -z "$APPLE_APP_SPECIFIC_PASSWORD" || -z "$APPLE_TEAM_ID" ]]; then
+            echo "::error::Set all three Apple notarization secrets."
+            exit 1
+          fi
+          archive="$RUNNER_TEMP/LightWorld/LightWorld-macOS-arm64.zip"
+          work=$(mktemp -d "$RUNNER_TEMP/lightworld-notary.XXXXXXXX")
+          xcrun notarytool submit "$archive" --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 15m --output-format json > "$work/result.json"
+          status=$(plutil -extract status raw "$work/result.json")
+          if [[ "$status" != Accepted ]]; then
+            submission=$(plutil -extract id raw "$work/result.json")
+            xcrun notarytool log "$submission" --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID"
+            exit 1
+          fi
+          ditto -x -k "$archive" "$work"
+          xcrun stapler staple "$work/LightWorld.app"
+          xcrun stapler validate "$work/LightWorld.app"
+          ditto -c -k --sequesterRsrc --keepParent "$work/LightWorld.app" "$work/stapled.zip"
+          mv -- "$work/stapled.zip" "$archive"
+          rm -rf -- "$work"
+
+      - name: Verify the download in a clean environment
+        run: ./scripts/smoke-macos.sh "$RUNNER_TEMP/LightWorld/LightWorld-macOS-arm64.zip"
+
+      - name: Publish to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          channel=preview
+          if [[ -n "${LIGHTWORLD_SIGN_IDENTITY:-}" ]]; then channel=latest; fi
+          python3 scripts/publish-macos.py "$RUNNER_TEMP/LightWorld/LightWorld-macOS-arm64.zip" "$channel"
+
+      - name: Remove the signing keychain
+        if: always() && env.LIGHTWORLD_SIGN_DIR != ''
+        run: |
+          keychain="$LIGHTWORLD_SIGN_DIR/signing.keychain-db"
+          if [[ -f "$keychain" ]]; then security delete-keychain "$keychain"; fi
+          rm -rf -- "$LIGHTWORLD_SIGN_DIR"
